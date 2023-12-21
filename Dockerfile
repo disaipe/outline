@@ -1,5 +1,5 @@
 ARG APP_PATH=/opt/outline
-FROM outlinewiki/outline-base as base
+FROM disaipe/outline-base as base
 
 ARG APP_PATH
 WORKDIR $APP_PATH
@@ -9,7 +9,7 @@ FROM node:20-alpine AS runner
 
 RUN apk update && apk add --no-cache curl && apk add --no-cache ca-certificates
 
-LABEL org.opencontainers.image.source="https://github.com/outline/outline"
+LABEL org.opencontainers.image.source="https://github.com/disaipe/outline"
 
 ARG APP_PATH
 WORKDIR $APP_PATH
