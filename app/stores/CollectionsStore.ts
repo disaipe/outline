@@ -10,6 +10,7 @@ import {
   NavigationNode,
 } from "@shared/types";
 import Collection from "~/models/Collection";
+import { Properties } from "~/types";
 import { client } from "~/utils/ApiClient";
 import RootStore from "./RootStore";
 import Store from "./base/Store";
@@ -165,14 +166,14 @@ export default class CollectionsStore extends Store<Collection> {
     }
   };
 
-  async update(params: Record<string, any>): Promise<Collection> {
+  async update(params: Properties<Collection>): Promise<Collection> {
     const result = await super.update(params);
 
     // If we're changing sharing permissions on the collection then we need to
     // remove all locally cached policies for documents in the collection as they
     // are now invalid
     if (params.sharing !== undefined) {
-      this.rootStore.documents.inCollection(params.id).forEach((document) => {
+      this.rootStore.documents.inCollection(result.id).forEach((document) => {
         this.rootStore.policies.remove(document.id);
       });
     }
@@ -229,11 +230,11 @@ export default class CollectionsStore extends Store<Collection> {
     return find(this.orderedData, (col: Collection) => url.endsWith(col.urlId));
   }
 
-  delete = async (collection: Collection) => {
+  async delete(collection: Collection) {
     await super.delete(collection);
     await this.rootStore.documents.fetchRecentlyUpdated();
     await this.rootStore.documents.fetchRecentlyViewed();
-  };
+  }
 
   export = (format: FileOperationFormat, includeAttachments: boolean) =>
     client.post("/collections.export_all", {

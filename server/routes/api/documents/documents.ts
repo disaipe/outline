@@ -152,12 +152,15 @@ router.post(
       sort = "updatedAt";
     }
 
-    const documents = await Document.defaultScopeWithUser(user.id).findAll({
-      where,
-      order: [[sort, direction]],
-      offset: ctx.state.pagination.offset,
-      limit: ctx.state.pagination.limit,
-    });
+    const [documents, total] = await Promise.all([
+      Document.defaultScopeWithUser(user.id).findAll({
+        where,
+        order: [[sort, direction]],
+        offset: ctx.state.pagination.offset,
+        limit: ctx.state.pagination.limit,
+      }),
+      Document.count({ where }),
+    ]);
 
     // index sort is special because it uses the order of the documents in the
     // collection.documentStructure rather than a database column
@@ -172,7 +175,7 @@ router.post(
     );
     const policies = presentPolicies(user, documents);
     ctx.body = {
-      pagination: ctx.state.pagination,
+      pagination: { ...ctx.state.pagination, total },
       data,
       policies,
     };
@@ -788,14 +791,17 @@ router.post(
 
     let teamId;
     let response;
+    let share;
 
     if (shareId) {
       const teamFromCtx = await getTeamFromContext(ctx);
-      const { share, document } = await documentLoader({
+      const { document, ...loaded } = await documentLoader({
         teamId: teamFromCtx?.id,
         shareId,
         user,
       });
+
+      share = loaded.share;
 
       if (!share?.includeChildDocuments) {
         throw InvalidRequestError("Child documents cannot be searched");
@@ -865,7 +871,7 @@ router.post(
       await SearchQuery.create({
         userId: user?.id,
         teamId,
-        shareId,
+        shareId: share?.id,
         source: ctx.state.auth.type || "app", // we'll consider anything that isn't "api" to be "app"
         query,
         results: totalCount,
@@ -903,7 +909,6 @@ router.post(
         editorVersion: original.editorVersion,
         collectionId: original.collectionId,
         teamId: original.teamId,
-        userId: user.id,
         publishedAt: new Date(),
         lastModifiedById: user.id,
         createdById: user.id,
@@ -1251,7 +1256,11 @@ router.post(
     });
     authorize(user, "unpublish", document);
 
-    const childDocumentIds = await document.findAllChildDocumentIds();
+    const childDocumentIds = await document.findAllChildDocumentIds({
+      archivedAt: {
+        [Op.eq]: null,
+      },
+    });
     if (childDocumentIds.length > 0) {
       throw InvalidRequestError(
         "Cannot unpublish document with child documents"
