@@ -99,6 +99,11 @@ export enum CollectionPermission {
   Admin = "admin",
 }
 
+export enum DocumentPermission {
+  Read = "read",
+  ReadWrite = "read_write",
+}
+
 export type IntegrationSettings<T> = T extends IntegrationType.Embed
   ? { url: string }
   : T extends IntegrationType.Analytics
@@ -158,6 +163,8 @@ export enum TeamPreference {
   PublicBranding = "publicBranding",
   /** Whether viewers should see download options. */
   ViewersCanExport = "viewersCanExport",
+  /** Whether members can invite new users. */
+  MembersCanInvite = "membersCanInvite",
   /** Whether users can comment on documents. */
   Commenting = "commenting",
   /** The custom theme for the team. */
@@ -168,6 +175,7 @@ export type TeamPreferences = {
   [TeamPreference.SeamlessEdit]?: boolean;
   [TeamPreference.PublicBranding]?: boolean;
   [TeamPreference.ViewersCanExport]?: boolean;
+  [TeamPreference.MembersCanInvite]?: boolean;
   [TeamPreference.Commenting]?: boolean;
   [TeamPreference.CustomTheme]?: Partial<CustomTheme>;
 };
@@ -198,6 +206,8 @@ export type CollectionSort = {
 export enum NotificationEventType {
   PublishDocument = "documents.publish",
   UpdateDocument = "documents.update",
+  AddUserToDocument = "documents.add_user",
+  AddUserToCollection = "collections.add_user",
   CreateRevision = "revisions.create",
   CreateCollection = "collections.create",
   CreateComment = "comments.create",
@@ -234,6 +244,8 @@ export const NotificationEventDefaults = {
   [NotificationEventType.Onboarding]: true,
   [NotificationEventType.Features]: true,
   [NotificationEventType.ExportCompleted]: true,
+  [NotificationEventType.AddUserToDocument]: true,
+  [NotificationEventType.AddUserToCollection]: true,
 };
 
 export enum UnfurlType {

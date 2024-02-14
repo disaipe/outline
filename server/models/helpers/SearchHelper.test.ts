@@ -1,3 +1,4 @@
+import { DocumentPermission } from "@shared/types";
 import SearchHelper from "@server/models/helpers/SearchHelper";
 import {
   buildDocument,
@@ -7,9 +8,11 @@ import {
   buildUser,
   buildShare,
 } from "@server/test/factories";
+import UserMembership from "../UserMembership";
 
-beforeEach(() => {
+beforeEach(async () => {
   jest.resetAllMocks();
+  await buildDocument();
 });
 
 describe("SearchHelper", () => {
@@ -118,7 +121,7 @@ describe("SearchHelper", () => {
         title: "test number 2",
       });
       const { totalCount } = await SearchHelper.searchForTeam(team, "test");
-      expect(totalCount).toBe("2");
+      expect(totalCount).toBe(2);
     });
 
     test("should return the document when searched with their previous titles", async () => {
@@ -137,7 +140,7 @@ describe("SearchHelper", () => {
         team,
         "test number"
       );
-      expect(totalCount).toBe("1");
+      expect(totalCount).toBe(1);
     });
 
     test("should not return the document when searched with neither the titles nor the previous titles", async () => {
@@ -156,7 +159,7 @@ describe("SearchHelper", () => {
         team,
         "title doesn't exist"
       );
-      expect(totalCount).toBe("0");
+      expect(totalCount).toBe(0);
     });
   });
 
@@ -172,6 +175,13 @@ describe("SearchHelper", () => {
         userId: user.id,
         teamId: team.id,
         collectionId: collection.id,
+        title: "test",
+      });
+      await buildDocument({
+        userId: user.id,
+        teamId: team.id,
+        collectionId: collection.id,
+        deletedAt: new Date(),
         title: "test",
       });
       const { results } = await SearchHelper.searchForUser(user, "test");
@@ -211,6 +221,27 @@ describe("SearchHelper", () => {
         createdById: user.id,
         title: "test",
       });
+      const { results } = await SearchHelper.searchForUser(user, "test", {
+        includeDrafts: false,
+      });
+      expect(results.length).toBe(0);
+    });
+
+    test("should not include drafts with user permission", async () => {
+      const user = await buildUser();
+      const draft = await buildDraftDocument({
+        teamId: user.teamId,
+        userId: user.id,
+        createdById: user.id,
+        title: "test",
+      });
+      await UserMembership.create({
+        createdById: user.id,
+        documentId: draft.id,
+        userId: user.id,
+        permission: DocumentPermission.Read,
+      });
+
       const { results } = await SearchHelper.searchForUser(user, "test", {
         includeDrafts: false,
       });
@@ -277,7 +308,7 @@ describe("SearchHelper", () => {
         title: "test number 2",
       });
       const { totalCount } = await SearchHelper.searchForUser(user, "test");
-      expect(totalCount).toBe("2");
+      expect(totalCount).toBe(2);
     });
 
     test("should return the document when searched with their previous titles", async () => {
@@ -299,7 +330,7 @@ describe("SearchHelper", () => {
         user,
         "test number"
       );
-      expect(totalCount).toBe("1");
+      expect(totalCount).toBe(1);
     });
 
     test("should not return the document when searched with neither the titles nor the previous titles", async () => {
@@ -321,7 +352,7 @@ describe("SearchHelper", () => {
         user,
         "title doesn't exist"
       );
-      expect(totalCount).toBe("0");
+      expect(totalCount).toBe(0);
     });
   });
 
@@ -461,14 +492,19 @@ describe("SearchHelper", () => {
       expect(SearchHelper.webSearchQuery("one\\two")).toBe("one\\\\two:*");
       expect(SearchHelper.webSearchQuery("test''")).toBe("test");
     });
-    test("should wildcard single word queries", () => {
+    test("should wildcard unquoted queries", () => {
       expect(SearchHelper.webSearchQuery("test")).toBe("test:*");
       expect(SearchHelper.webSearchQuery("'")).toBe("");
       expect(SearchHelper.webSearchQuery("'quoted'")).toBe(`"quoted":*`);
     });
-    test("should not wildcard other queries", () => {
+    test("should wildcard multi-word queries", () => {
       expect(SearchHelper.webSearchQuery("this is a test")).toBe(
-        "this&is&a&test"
+        "this&is&a&test:*"
+      );
+    });
+    test("should now wildcard quoted queries", () => {
+      expect(SearchHelper.webSearchQuery(`"this is a test"`)).toBe(
+        `"this<->is<->a<->test"`
       );
     });
   });
